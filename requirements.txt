@@ -1,0 +1,9 @@
+streamlit  # Core library for the app
+openai-whisper  # Whisper for transcription
+sounddevice  # Recording live audio
+wavio  # Saving recorded audio as WAV
+numpy  # Handling audio data
+ffmpeg  # Required for audio processing
+google-generativeai  # Gemini API for chatbot
+python-docx  # Generating DOCX files
+fpdf  # Generating PDF files
