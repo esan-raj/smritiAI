@@ -2,7 +2,7 @@ import streamlit as st
 import google.generativeai as genai
 
 # Configure Gemini API
-genai.configure(api_key="AIzaSyDGJl3XfCzixZzJAWsBx_Zv-V_gfhdUHvA")
+genai.configure(api_key="gemini_api_key")
 
 # Chatbot function
 def chatbot_app():
