@@ -6,6 +6,8 @@ import whisper
 import tempfile
 from docx import Document
 from fpdf import FPDF
+from modules.reminder_manager import add_reminder
+from datetime import datetime, timedelta
 
 # Function to record live audio
 def record_audio(duration=5, samplerate=44100):
@@ -72,10 +74,27 @@ def transcriber_app():
             transcript_text = result["text"]
             st.success(f"📜 **Transcription:** {transcript_text}")
 
+    # 📌 New: Set Reminder from Transcribed Text
+    if transcript_text:
+        st.write("### ⏰ Set Reminder from Transcription")
+        reminder_message = st.text_input("✍️ Reminder Message:", transcript_text)  # Prefilled with transcript
+        reminder_date = st.date_input("📆 Select Date:", min_value=datetime.today())
+        reminder_time = st.time_input("⏰ Select Time:", value=(datetime.now() + timedelta(minutes=5)).time())
+
+        if st.button("✅ Set Reminder", key="transcriber_reminder"):
+            if reminder_message and st.session_state.phone_number:
+                reminder_datetime = datetime.combine(reminder_date, reminder_time)
+                formatted_time = reminder_datetime.strftime("%H:%M")  # Convert datetime to HH:MM format
+                add_reminder("User", reminder_message, formatted_time, st.session_state.phone_number)
+                st.success(f"🔔 Reminder set: '{reminder_message}' at {reminder_datetime}")
+                st.rerun()
+            else:
+                st.error("❌ Please enter a message and your phone number!")
+
     # Download Options for Transcript
     if transcript_text:
         st.write("### 📥 Download Transcript")
-        
+
         # Save transcript as DOCX
         docx_path = save_as_docx(transcript_text)
         with open(docx_path, "rb") as docx_file:

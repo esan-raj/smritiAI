@@ -14,6 +14,11 @@ from pydub import AudioSegment
 from pydub.playback import play
 import requests
 import asyncio
+import re
+from datetime import datetime
+from modules.reminder_manager import add_reminder, get_reminders, remove_reminder, send_sms
+import threading
+
 
 # Load Whisper Model (Use 'base' for faster, 'small' or 'medium' for better accuracy)
 MODEL_SIZE = "medium"
@@ -121,6 +126,71 @@ def send_to_langflow(user_input):
     except requests.exceptions.RequestException as e:
         return f"⚠️ API Error: {e}"
 
+# Function to extract reminder details from user input
+def extract_reminder_details(user_input):
+    """
+    Extracts reminder details (message and time) from user input.
+    Converts AM/PM format to 24-hour format.
+    """
+    reminder_keywords = ["remind me", "schedule", "set a reminder"]
+    time_patterns = [r"\b\d{1,2}:\d{2}\s?(AM|PM|am|pm)?\b", r"\bin\s\d+\s?(minutes|hours|days)\b"]
+
+    if any(keyword in user_input.lower() for keyword in reminder_keywords):
+        reminder_message = user_input
+        reminder_time = None
+
+        # Extract time if mentioned
+        for pattern in time_patterns:
+            match = re.search(pattern, user_input, re.IGNORECASE)
+            if match:
+                raw_time = match.group().strip()
+                reminder_message = user_input.replace(raw_time, "").strip()
+
+                # Convert 12-hour AM/PM format to 24-hour format
+                try:
+                    if "AM" in raw_time.upper() or "PM" in raw_time.upper():
+                        reminder_time = datetime.strptime(raw_time, "%I:%M %p").strftime("%H:%M")
+                    else:
+                        reminder_time = datetime.strptime(raw_time, "%H:%M").strftime("%H:%M")
+                except ValueError:
+                    return None, None  # Invalid time format
+
+                break
+        
+        return reminder_message, reminder_time
+    return None, None
+
+# Function to check if input contains a reminder request
+def detect_and_set_reminder(user_input, phone_number):
+    reminder_message, reminder_time = extract_reminder_details(user_input)
+    if reminder_message and reminder_time:
+        try:
+            formatted_time = datetime.strptime(reminder_time, "%H:%M").strftime("%H:%M")
+            add_reminder("User", reminder_message, formatted_time, phone_number)
+            send_sms(phone_number, f"Reminder set: {reminder_message} at {formatted_time}")
+            st.success(f"🔔 Reminder set: '{reminder_message}' at {formatted_time}")
+            return True
+        except ValueError:
+            st.error("❌ Invalid time format. Use HH:MM (24-hour format).")
+            return False
+    return False
+
+
+def manage_reminders(phone_number):
+    reminders = get_reminders(phone_number)
+    if not reminders:
+        st.info("No upcoming reminders found.")
+        return
+    st.write("### 🔔 Upcoming Reminders")
+    for reminder in reminders:
+        reminder_id, user, message, reminder_time, phone = reminder
+        st.write(f"📌 {message} at {reminder_time}")
+        if st.button(f"❌ Remove", key=f"remove_{reminder_id}"):
+            remove_reminder(reminder_id)
+            st.success("Reminder removed!")
+            st.rerun()
+
+
 # Function to convert chatbot response to speech and save it
 def text_to_speech(text, method="gtts"):
     """
@@ -137,6 +207,7 @@ def text_to_speech(text, method="gtts"):
             try:
                 tts = gtts.gTTS(text, lang="en")
                 tts.save(temp_file_path)
+                print("Audio file saved")
             except Exception as e:
                 print("gTTS Error:", e)
                 return None
@@ -145,49 +216,80 @@ def text_to_speech(text, method="gtts"):
             try:
                 engine.save_to_file(text, temp_file_path)
                 engine.runAndWait()
+                print("Audio file saved")
             except Exception as e:
                 print("pyttsx3 Error:", e)
                 return None
     return temp_file_path
 
 # Function to play the saved response audio
-def play_audio(file_path):
-    """Plays the generated speech audio."""
+def play_audio_with_highlight(file_path, text):
+    """
+    Plays the generated speech audio while highlighting words in sync.
+    """
     try:
         sound = AudioSegment.from_file(file_path, format="mp3")
-        play(sound)
+        words = text.split()
+        duration_per_word = len(sound) / len(words)  # Approximate duration per word in milliseconds
+
+        # Function to play audio in a separate thread
+        def play_audio():
+            play(sound)
+
+        # Start playing audio in a separate thread
+        audio_thread = threading.Thread(target=play_audio)
+        audio_thread.start()
+
+        # Display text with synchronized word highlighting
+        for i, word in enumerate(words):
+            highlighted_text = " ".join([
+                f"<span style='background-color:yellow'>{w}</span>" if j == i else w
+                for j, w in enumerate(words)
+            ])
+            st.markdown(f"<p style='font-size:18px'>{highlighted_text}</p>", unsafe_allow_html=True)
+            time.sleep(duration_per_word / 1000.0)  # Convert ms to seconds
+
+        # Ensure audio finishes playing
+        audio_thread.join()
+
     except Exception as e:
         print("Audio Playback Error:", e)
 
 # SmritiAI Chatbot function with Whisper-based Voice Input and TTS Output
 def chatbot_app_langflow():
-    """Runs SmritiAI Chatbot inside Streamlit with voice input, TTS output, and replay button."""
+    """
+    Runs SmritiAI Chatbot inside Streamlit with voice input, TTS output, and reminder detection.
+    """
     st.title("🧠 SmritiAI - Dementia Support Chatbot (Langflow)")
+    st.session_state.enable_voice = st.sidebar.checkbox("🔊 Enable Voice Output", value=True)
 
-    # Toggle for voice output
-    if "enable_voice" not in st.session_state:
-        st.session_state.enable_voice = True
+    # Phone number input for reminders
+    if "phone_number" not in st.session_state:
+        st.session_state.phone_number = ""
+    phone_number = st.text_input("📱 Enter phone number for reminders:", value=st.session_state.phone_number, key="phone_input")
+    if phone_number:
+        st.session_state.phone_number = phone_number
 
-    st.session_state.enable_voice = st.sidebar.checkbox("🔊 Enable Voice Output", value=st.session_state.enable_voice)
+    if st.sidebar.button("📅 View/Cancel Reminders"):
+        manage_reminders(st.session_state.phone_number)
 
-    # Initialize chat history
+    # Display chat history
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = []
 
-    # Display chat history
-    for role, message, audio_file in st.session_state.chat_history:
+    for chat_entry in st.session_state.chat_history:
+        role, message, audio_file = chat_entry if len(chat_entry) == 3 else (chat_entry[0], chat_entry[1], None)
         with st.chat_message("user" if role == "You" else "assistant"):
             st.markdown(message)
             if audio_file:
                 if st.button(f"▶️ Replay {role}'s Response", key=f"replay_{hash(message)}"):
-                    play_audio(audio_file)
+                    play_audio_with_highlight(audio_file, message)
 
     # User input options
     col1, col2 = st.columns([2, 1])
     
     with col1:
-        user_input = st.chat_input("Ask SmritiAI anything...")
-        print(user_input)
+        user_input = st.chat_input("Ask SmritiAI anything...", key="chat_input")
 
     with col2:
         if st.button("🎤 Speak"):
@@ -196,30 +298,35 @@ def chatbot_app_langflow():
                 user_input = voice_text
 
     if user_input:
-        # Append user message to chat history
-        st.session_state.chat_history.append(("You", user_input, None))
-
-        # Display user message
+        st.session_state.chat_history.append(("You", user_input))
         with st.chat_message("user"):
             st.markdown(user_input)
 
-        print(f"User Input is ----------------------------------------------------------------\n{user_input}")
-        # Send request to Langflow
+        # 🔔 Check if input is a reminder request
+        reminder_message, reminder_time = extract_reminder_details(user_input)
+        if reminder_message and reminder_time:
+            if st.session_state.phone_number:
+                add_reminder("User", reminder_message, reminder_time, st.session_state.phone_number)
+                st.success(f"🔔 Reminder set: '{reminder_message}' at {reminder_time}")
+                return
+            else:
+                st.error("❌ Please enter your phone number to set reminders!")
+
+        # 🧠 Otherwise, send input to Langflow AI
         response = send_to_langflow(user_input)
-        print("this is response ---------------------------------------------------------------------")
-        print(response)
-        # Generate voice response if voice is enabled
+        
+        # 🎙️ Text-to-Speech + Subtitles
         audio_file = None
         if st.session_state.enable_voice:
             audio_file = text_to_speech(response)
-            play_audio(audio_file)  # Auto-play once
-
-        # Append AI response to chat history
+        
         st.session_state.chat_history.append(("🧠 SmritiAI", response, audio_file))
-
-        # Display AI response
+        
         with st.chat_message("assistant"):
             st.markdown(response)
+        
+        if audio_file:
+            play_audio_with_highlight(audio_file, response)
 
 # Run chatbot if script is executed
 if __name__ == "__main__":
