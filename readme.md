@@ -92,12 +92,10 @@ langflow run
 ```bash
 SmritiAI/
 │── main.py                 # Streamlit Dashboard
-│── streamlit_app.py        # Entry point for Streamlit app
 │── test.py                 # Testing script
 │── requirements.txt        # Dependencies
 ├── modules/
 │   ├── langflow_chatbot.py # Langflow chatbot integration
-│   ├── gemini_chatbot.py   # Gemini chatbot alternative
 │   ├── reminder_manager.py # Handles reminders & SMS
 │   ├── transcriber.py      # Speech-to-text module
 │   ├── todo.py             # To-Do list with reminders
