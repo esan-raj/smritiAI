@@ -139,13 +139,13 @@ Thanks to these amazing people for their contributions! 🎉
 
 <p align="center">
   <a href="https://github.com/esan-raj">
-    <img src="https://github.com/esan-raj.png" width="80" height="80" style="border-radius: 50%;">
+    <img src="https://github.com/esan-raj.png" width="90" height="90" style="border-radius: 60%; margin: 10px;">
   </a>
   <a href="https://github.com/Rahul-Sanskar">
-    <img src="https://github.com/Rahul-Sanskar.png" width="80" height="80" style="border-radius: 50%;">
+    <img src="https://github.com/Rahul-Sanskar.png" width="90" height="90" style="border-radius: 60%; margin: 10px;">
   </a>
   <a href="https://github.com/RT-Jha">
-    <img src="https://github.com/RT-Jha.png" width="80" height="80" style="border-radius: 50%;">
+    <img src="https://github.com/RT-Jha.png" width="90" height="90" style="border-radius: 60%; margin: 10px;">
   </a>
 </p>
 
