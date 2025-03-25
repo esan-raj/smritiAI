@@ -137,9 +137,17 @@ Thanks to these amazing people for their contributions! 🎉
 
 ## 🔥 Profile Avatars
 
-[![Esan Raj](https://github.com/esan-raj.png?size=50)](https://github.com/esan-raj)
-[![Rahul Sanskar](https://github.com/Rahul-Sanskar.png?size=50)](https://github.com/Rahul-Sanskar)
-[![Aarti Jha](https://github.com/RT-Jha.png?size=50)](https://github.com/RT-Jha)
+<p align="center">
+  <a href="https://github.com/esan-raj">
+    <img src="https://github.com/esan-raj.png" width="80" height="80" style="border-radius: 50%;">
+  </a>
+  <a href="https://github.com/Rahul-Sanskar">
+    <img src="https://github.com/Rahul-Sanskar.png" width="80" height="80" style="border-radius: 50%;">
+  </a>
+  <a href="https://github.com/RT-Jha">
+    <img src="https://github.com/RT-Jha.png" width="80" height="80" style="border-radius: 50%;">
+  </a>
+</p>
 
 ---
 
