@@ -1,3 +1,4 @@
+import base64
 import streamlit as st
 import requests
 import whisper
@@ -18,6 +19,10 @@ import re
 from datetime import datetime
 from modules.reminder_manager import add_reminder, get_reminders, remove_reminder, send_sms
 import threading
+import chromadb
+
+client = chromadb.PersistentClient(path="./chroma_db")
+collection = client.get_or_create_collection(name="chat_history")
 
 
 # Load Whisper Model (Use 'base' for faster, 'small' or 'medium' for better accuracy)
@@ -95,14 +100,43 @@ def record_voice_input():
         st.error(f"❌ Whisper transcription failed: {e}")
         return None
 
+def store_chat_in_memory(user_input, bot_response):
+    """
+    Stores the user's input and chatbot's response in ChromaDB.
+    Uses session_id or unique identifier (e.g., phone number) to track user conversations.
+    """
+    session_id = "default_user"  # Replace with actual user ID if available
+    
+    collection.add(
+        ids=[str(time.time())],  # Unique ID based on timestamp
+        metadatas=[{"session_id": session_id}],
+        documents=[f"User: {user_input} | Assistant: {bot_response}"]
+    )
+
+def get_past_chat_context():
+    """
+    Retrieves past chat messages from ChromaDB for personalization.
+    """
+    session_id = "default_user"  # Replace with actual user ID if available
+    
+    results = collection.query(
+        query_texts=["previous chats"],
+        n_results=5  # Retrieve last 5 interactions for context
+    )
+    
+    if results and results.get("documents"):
+        return " ".join(results["documents"][0])  # Combine past messages as context
+    return ""
+
+
 # Function to send user input to Langflow and get response
 def send_to_langflow(user_input):
     """Sends user input to Langflow chatbot and retrieves AI response."""
-    
+    chat_context = get_past_chat_context()
     api_url = f"{BASE_API_URL}/api/v1/run/{FLOW_ID}"  # Ensure correct URL
 
     payload = {
-        "input_value": user_input,  # Correct key expected by Langflow
+        "input_value": f"Previous context: {chat_context}\nNew Message: {user_input}",  # Correct key expected by Langflow
         "output_type": "chat",      # Expected response type
         "input_type": "chat",       # Input mode
         "tweaks": TWEAKS            # Force Gemini model selection
@@ -118,7 +152,9 @@ def send_to_langflow(user_input):
             if outputs and isinstance(outputs, list):
                 first_output = outputs[0].get("outputs", [])
                 if first_output and isinstance(first_output, list):
-                    return first_output[0]["outputs"]["message"]["message"]
+                    bot_response = first_output[0]["outputs"]["message"]["message"]
+                    store_chat_in_memory(user_input, bot_response)
+                    return bot_response
             return "⚠️ No valid response from SmritiAI."
         else:
             return f"⚠️ Error {response.status_code}: Unable to connect to Langflow API."
@@ -225,42 +261,66 @@ def text_to_speech(text, method="gtts"):
 # Function to play the saved response audio
 def play_audio_with_highlight(file_path, text):
     """
-    Plays the generated speech audio while highlighting words in sync.
+    Plays the generated speech audio while synchronizing subtitles.
     """
     try:
+        # Load audio
         sound = AudioSegment.from_file(file_path, format="mp3")
         words = text.split()
-        duration_per_word = len(sound) / len(words)  # Approximate duration per word in milliseconds
+        duration_per_word = len(sound) / len(words)  # Calculate time per word
+
+        # Streamlit container to update subtitles dynamically
+        subtitle_placeholder = st.empty()
 
         # Function to play audio in a separate thread
         def play_audio():
             play(sound)
 
-        # Start playing audio in a separate thread
+        # Start audio playback in a separate thread
         audio_thread = threading.Thread(target=play_audio)
         audio_thread.start()
 
-        # Display text with synchronized word highlighting
+        # Highlight words in sync with audio
         for i, word in enumerate(words):
             highlighted_text = " ".join([
-                f"<span style='background-color:yellow'>{w}</span>" if j == i else w
+                f"<span style='color:black;'>{w}</span>" if j != i else f"<span style='background-color:yellow; color:black;'>{w}</span>"
                 for j, w in enumerate(words)
             ])
-            st.markdown(f"<p style='font-size:18px'>{highlighted_text}</p>", unsafe_allow_html=True)
+            subtitle_placeholder.markdown(f"<p style='font-size:18px;'>{highlighted_text}</p>", unsafe_allow_html=True)
             time.sleep(duration_per_word / 1000.0)  # Convert ms to seconds
 
-        # Ensure audio finishes playing
+        # Ensure audio playback finishes before continuing
         audio_thread.join()
 
     except Exception as e:
-        print("Audio Playback Error:", e)
+        st.error(f"Audio Playback Error: {e}")
 
 # SmritiAI Chatbot function with Whisper-based Voice Input and TTS Output
 def chatbot_app_langflow():
     """
     Runs SmritiAI Chatbot inside Streamlit with voice input, TTS output, and reminder detection.
     """
-    st.title("🧠 SmritiAI - Dementia Support Chatbot (Langflow)")
+    logo_path = "D:\SmritiAI\SmritiAI\images\Smriti_ai_logo.jpg"
+
+# Display logo in the sidebar
+    def get_base64_encoded_image(image_path):
+        with open(image_path, "rb") as img_file:
+            return base64.b64encode(img_file.read()).decode()
+
+# Convert image to base64
+    logo_base64 = get_base64_encoded_image(logo_path)
+
+# Display the image in the sidebar (center-aligned)
+    # st.sidebar.markdown(
+    #     f"""
+    #     <div style="display: flex; justify-content: center; align-items: center;">
+    #         <img src="data:image/jpg;base64,{logo_base64}" width="150">
+    #     </div>
+    #     """,
+    #     unsafe_allow_html=True
+    # )
+    st.title("🧠 SmritiAI - Dementia Support Chatbot ")
+    
     st.session_state.enable_voice = st.sidebar.checkbox("🔊 Enable Voice Output", value=True)
 
     # Phone number input for reminders
@@ -277,12 +337,13 @@ def chatbot_app_langflow():
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = []
 
-    for chat_entry in st.session_state.chat_history:
+    for idx, chat_entry in enumerate(st.session_state.chat_history):
         role, message, audio_file = chat_entry if len(chat_entry) == 3 else (chat_entry[0], chat_entry[1], None)
         with st.chat_message("user" if role == "You" else "assistant"):
             st.markdown(message)
             if audio_file:
-                if st.button(f"▶️ Replay {role}'s Response", key=f"replay_{hash(message)}"):
+                # Ensure unique key by including index
+                if st.button(f"▶️ Replay {role}'s Response", key=f"replay_{idx}"):
                     play_audio_with_highlight(audio_file, message)
 
     # User input options
@@ -304,8 +365,10 @@ def chatbot_app_langflow():
 
         # 🔔 Check if input is a reminder request
         reminder_message, reminder_time = extract_reminder_details(user_input)
+        print(f"Reminder Message: {reminder_message} \n reminder_time: {reminder_time}")
         if reminder_message and reminder_time:
             if st.session_state.phone_number:
+                print(st.session_state.phone_number)
                 add_reminder("User", reminder_message, reminder_time, st.session_state.phone_number)
                 st.success(f"🔔 Reminder set: '{reminder_message}' at {reminder_time}")
                 return
@@ -327,6 +390,7 @@ def chatbot_app_langflow():
         
         if audio_file:
             play_audio_with_highlight(audio_file, response)
+
 
 # Run chatbot if script is executed
 if __name__ == "__main__":

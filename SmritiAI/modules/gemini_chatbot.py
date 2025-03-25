@@ -5,6 +5,7 @@ import google.generativeai as genai
 genai.configure(api_key="gemini_api_key")
 
 
+
 # Function to format system instructions for SmritiAI
 def get_smritiai_prompt(user_input):
     return f"""
