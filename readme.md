@@ -123,10 +123,28 @@ SmritiAI/
 
 - Integration with additional messaging platforms.
 
-# Contributors
-- Esan Raj - Developer (Chatbot Development and streamlit integration )
-- Rahul Sanskar - Developer (To-DO list) 
-- Aarti Jha - Developer (Transcriber)
+# 👥 Contributors
+
+Thanks to these amazing people for their contributions! 🎉  
+
+| Name           | Role                                      | GitHub Profile |
+|---------------|------------------------------------------|----------------|
+| **Esan Raj**  | Developer (Chatbot Development & Streamlit Integration) | [GitHub](https://github.com/esan-raj) |
+| **Rahul Sanskar** | Developer (To-Do List)                  | [GitHub](https://github.com/Rahul-Sanskar) |
+| **Aarti Jha** | Developer (Transcriber)                  | [GitHub](https://github.com/RT-Jha) |
+
+---
+
+## 🔥 Profile Avatars
+
+[![Esan Raj](https://github.com/esan-raj.png?size=50)](https://github.com/esan-raj)
+[![Rahul Sanskar](https://github.com/Rahul-Sanskar.png?size=50)](https://github.com/Rahul-Sanskar)
+[![Aarti Jha](https://github.com/RT-Jha.png?size=50)](https://github.com/RT-Jha)
+
+---
+
+We appreciate all contributions to this project! 🚀✨
+
 
 # License
 **This project is licensed under the MIT License. Feel free to use and modify it!**
