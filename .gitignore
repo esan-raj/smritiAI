@@ -1,2 +1,5 @@
 __pycache__/
 env/
+SmritiAI/test.py
+SmritiAI/streamlit_app.py
+SmritiAI/modules/gemini_chatbot.py

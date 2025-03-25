@@ -27,8 +27,7 @@ elif app_mode == "":
     chatbot_app()
 
 elif app_mode == "":
-    logging.info("To-Do List app selected")
-    todo_app()
+    logging.info("To-Do List app selected")    todo_app()
 # Sidebar Navigation
 st.sidebar.title("📌 SmiritiAI | Dashboard")
 app_mode = st.sidebar.radio("Select an Option:", ["🏠 Home", "🎙️ Transcriber", "🤖 Chatbot", "📝 To-Do List"])

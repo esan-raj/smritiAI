@@ -65,25 +65,6 @@ def todo_app():
     """
     Streamlit To-Do List App with Dynamic Reminders.
     """
-    logo_path = "D:\SmritiAI\SmritiAI\images\Smriti_ai_logo.jpg"
-
-# Display logo in the sidebar
-    def get_base64_encoded_image(image_path):
-        with open(image_path, "rb") as img_file:
-            return base64.b64encode(img_file.read()).decode()
-
-    # Convert image to base64
-    logo_base64 = get_base64_encoded_image(logo_path)
-
-    # Display the image in the sidebar (center-aligned)
-    # st.sidebar.markdown(
-    #     f"""
-    #     <div style="display: flex; justify-content: center; align-items: center;">
-    #         <img src="data:image/jpg;base64,{logo_base64}" width="150">
-    #     </div>
-    #     """,
-    #     unsafe_allow_html=True
-    # )
     st.title("📝 Smart To-Do List with Reminders")
 
     task = st.text_input("Enter a task:")

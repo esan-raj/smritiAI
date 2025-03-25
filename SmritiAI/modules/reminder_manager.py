@@ -4,11 +4,10 @@ import time
 from datetime import datetime
 from twilio.rest import Client
 
-
-
-TWILIO_ACCOUNT_SID = "Account ID"
-TWILIO_AUTH_TOKEN = "Auth token"
-TWILIO_PHONE_NUMBER = "Twilio Phone Number"  # Twilio trial number
+# 📌 Twilio API Credentials
+TWILIO_ACCOUNT_SID = "your_account_sid"
+TWILIO_AUTH_TOKEN = "your_auth_token"
+TWILIO_PHONE_NUMBER = "your_twilio_phone_number"
 
 # 📌 Database Setup
 def initialize_db():
